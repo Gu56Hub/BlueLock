@@ -1,13 +1,11 @@
-
 local Library = {}
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local MarketplaceService = game:GetService("MarketplaceService")
 local CoreGui = game:GetService("CoreGui")
-local Players = game:GetService("Players")
 
--- ==================== THEME (สวยขึ้น) ====================
-local Theme = {
+-- ==================== DEFAULT THEME ====================
+local DefaultTheme = {
     Background     = Color3.fromRGB(15, 15, 20),
     Secondary      = Color3.fromRGB(22, 22, 30),
     Card           = Color3.fromRGB(28, 28, 38),
@@ -26,6 +24,22 @@ local Theme = {
     Stroke         = Color3.fromRGB(40, 40, 55),
 }
 
+-- Font ที่รองรับ (ใครก็เปลี่ยนได้)
+local Fonts = {
+    Gotham       = Enum.Font.Gotham,
+    GothamBold   = Enum.Font.GothamBold,
+    GothamMedium = Enum.Font.GothamMedium,
+    GothamBlack  = Enum.Font.GothamBlack,
+    SourceSans   = Enum.Font.SourceSans,
+    SourceSansBold = Enum.Font.SourceSansBold,
+    Ubuntu       = Enum.Font.Ubuntu,
+    Arial        = Enum.Font.Arial,
+    ArialBold    = Enum.Font.ArialBold,
+    Code         = Enum.Font.Code,
+    Fantasy      = Enum.Font.Fantasy,
+    Highway      = Enum.Font.Highway,
+}
+
 local function Create(class, props)
     local obj = Instance.new(class)
     for i, v in pairs(props or {}) do
@@ -41,14 +55,14 @@ end
 local function AddStroke(parent, color, thickness)
     return Create("UIStroke", {
         Parent = parent,
-        Color = color or Theme.Stroke,
+        Color = color or DefaultTheme.Stroke,
         Thickness = thickness or 1,
         ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     })
 end
 
 -- ==================== KEY SYSTEM ====================
-local ValidKey = nil          -- ตั้งค่า Key ที่นี่ หรือผ่าน :SetKey()
+local ValidKey = nil
 local IsUnlocked = false
 
 function Library:SetKey(key)
@@ -70,10 +84,33 @@ end
 -- ==================== CREATE WINDOW ====================
 function Library:CreateWindow(config)
     config = config or {}
-    local title = config.Title or "UI Library"
-    local placeId = config.PlaceId or 2753915549   -- ใส่ PlaceId ที่ต้องการ
 
-    -- ดึงชื่อเกมจริง
+    -- ===== ตั้งค่าที่เปลี่ยนได้ทั้งหมด =====
+    local title          = config.Title or "UI Library"
+    local placeId        = config.PlaceId or 2753915549
+
+    -- Theme (ใครก็ใส่ของตัวเองได้)
+    local Theme = {}
+    for k, v in pairs(DefaultTheme) do
+        Theme[k] = (config.Theme and config.Theme[k]) or v
+    end
+
+    -- Font (ใครก็เปลี่ยนได้)
+    local MainFont       = config.Font or Fonts.Gotham
+    local BoldFont       = config.BoldFont or Fonts.GothamBold
+    local MediumFont     = config.MediumFont or Fonts.GothamMedium
+
+    -- Background (Color / Image / GIF)
+    -- config.BackgroundType = "Color" | "Image" | "Gif"
+    -- config.BackgroundColor = Color3
+    -- config.BackgroundImage = "rbxassetid://123456789"  (รองรับทั้งรูปปกติและ GIF)
+    -- config.BackgroundTransparency = 0 ~ 1
+    local bgType         = config.BackgroundType or "Color"
+    local bgColor        = config.BackgroundColor or Theme.Background
+    local bgImage        = config.BackgroundImage or ""
+    local bgTransparency = config.BackgroundTransparency or 0
+
+    -- ดึงชื่อเกม
     local gameName = "Unknown Game"
     pcall(function()
         local info = MarketplaceService:GetProductInfo(placeId)
@@ -91,7 +128,8 @@ function Library:CreateWindow(config)
     local Main = Create("Frame", {
         Name = "Main",
         Parent = ScreenGui,
-        BackgroundColor3 = Theme.Background,
+        BackgroundColor3 = bgColor,
+        BackgroundTransparency = (bgType == "Color") and 0 or 1,
         BorderSizePixel = 0,
         Position = UDim2.new(0.5, -300, 0.5, -220),
         Size = UDim2.new(0, 600, 0, 440),
@@ -100,7 +138,31 @@ function Library:CreateWindow(config)
     Create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = Main})
     AddStroke(Main, Theme.Accent, 1.5)
 
-    -- Shadow effect (fake)
+    -- ===== Background Image / GIF =====
+    local BgImageLabel = nil
+    if bgType == "Image" or bgType == "Gif" then
+        BgImageLabel = Create("ImageLabel", {
+            Name = "CustomBackground",
+            Parent = Main,
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 1, 0),
+            Image = bgImage,
+            ImageTransparency = bgTransparency,
+            ScaleType = Enum.ScaleType.Crop,   -- หรือ Fit / Stretch ตามชอบ
+            ZIndex = 0
+        })
+        Create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = BgImageLabel})
+
+        -- ถ้าเป็น GIF (บาง asset รองรับการเล่นอัตโนมัติ)
+        if bgType == "Gif" then
+            -- Roblox ไม่ได้ play GIF อัตโนมัติทุกตัว
+            -- แต่ถ้า asset เป็น animated image จะแสดงได้
+            -- ถ้าอยากทำ frame animation เอง บอกได้ จะเพิ่มระบบให้
+        end
+    end
+
+    -- Shadow
     local Shadow = Create("ImageLabel", {
         Parent = Main,
         BackgroundTransparency = 1,
@@ -108,65 +170,69 @@ function Library:CreateWindow(config)
         Size = UDim2.new(1, 30, 1, 30),
         Image = "rbxassetid://6014261993",
         ImageColor3 = Color3.fromRGB(0, 0, 0),
-        ImageTransparency = 0.6,
+        ImageTransparency = 0.55,
         ScaleType = Enum.ScaleType.Slice,
         SliceCenter = Rect.new(49, 49, 450, 450),
-        ZIndex = 0
+        ZIndex = -1
     })
 
     -- ===== Title Bar =====
     local TitleBar = Create("Frame", {
         Parent = Main,
         BackgroundColor3 = Theme.Secondary,
+        BackgroundTransparency = 0.15,
         BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 42)
+        Size = UDim2.new(1, 0, 0, 42),
+        ZIndex = 2
     })
     Create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = TitleBar})
-
-    -- ซ่อนมุมล่างของ TitleBar
     Create("Frame", {
         Parent = TitleBar,
         BackgroundColor3 = Theme.Secondary,
+        BackgroundTransparency = 0.15,
         BorderSizePixel = 0,
         Position = UDim2.new(0, 0, 1, -12),
-        Size = UDim2.new(1, 0, 0, 12)
+        Size = UDim2.new(1, 0, 0, 12),
+        ZIndex = 2
     })
 
     local TitleLabel = Create("TextLabel", {
         Parent = TitleBar,
         BackgroundTransparency = 1,
         Position = UDim2.new(0, 16, 0, 0),
-        Size = UDim2.new(0.6, 0, 1, 0),
-        Font = Enum.Font.GothamBold,
+        Size = UDim2.new(0.55, 0, 1, 0),
+        Font = BoldFont,
         Text = title,
         TextColor3 = Theme.Text,
         TextSize = 16,
-        TextXAlignment = Enum.TextXAlignment.Left
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 3
     })
 
     local GameLabel = Create("TextLabel", {
         Parent = TitleBar,
         BackgroundTransparency = 1,
-        Position = UDim2.new(0.55, 0, 0, 0),
-        Size = UDim2.new(0.35, 0, 1, 0),
-        Font = Enum.Font.Gotham,
+        Position = UDim2.new(0.52, 0, 0, 0),
+        Size = UDim2.new(0.38, 0, 1, 0),
+        Font = MainFont,
         Text = gameName,
         TextColor3 = Theme.TextDark,
         TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Right,
-        TextTruncate = Enum.TextTruncate.AtEnd
+        TextTruncate = Enum.TextTruncate.AtEnd,
+        ZIndex = 3
     })
 
-    -- Close Button
     local CloseBtn = Create("TextButton", {
         Parent = TitleBar,
         BackgroundTransparency = 1,
         Position = UDim2.new(1, -40, 0, 0),
         Size = UDim2.new(0, 40, 1, 0),
-        Font = Enum.Font.GothamBold,
+        Font = BoldFont,
         Text = "✕",
         TextColor3 = Theme.TextDark,
-        TextSize = 16
+        TextSize = 16,
+        ZIndex = 3
     })
     CloseBtn.MouseEnter:Connect(function()
         Tween(CloseBtn, {TextColor3 = Theme.Locked})
@@ -199,13 +265,15 @@ function Library:CreateWindow(config)
         end
     end)
 
-    -- ===== Sidebar (Tabs) =====
+    -- ===== Sidebar =====
     local Sidebar = Create("Frame", {
         Parent = Main,
         BackgroundColor3 = Theme.Secondary,
+        BackgroundTransparency = 0.2,
         BorderSizePixel = 0,
         Position = UDim2.new(0, 0, 0, 42),
-        Size = UDim2.new(0, 140, 1, -42)
+        Size = UDim2.new(0, 140, 1, -42),
+        ZIndex = 2
     })
 
     local TabList = Create("ScrollingFrame", {
@@ -215,7 +283,8 @@ function Library:CreateWindow(config)
         CanvasSize = UDim2.new(0, 0, 0, 0),
         ScrollBarThickness = 2,
         ScrollBarImageColor3 = Theme.Accent,
-        BorderSizePixel = 0
+        BorderSizePixel = 0,
+        ZIndex = 2
     })
     Create("UIListLayout", {
         Parent = TabList,
@@ -230,17 +299,17 @@ function Library:CreateWindow(config)
         PaddingBottom = UDim.new(0, 12)
     })
 
-    -- ===== Content Area =====
+    -- ===== Content =====
     local Content = Create("Frame", {
         Parent = Main,
         BackgroundTransparency = 1,
         Position = UDim2.new(0, 140, 0, 42),
-        Size = UDim2.new(1, -140, 1, -42)
+        Size = UDim2.new(1, -140, 1, -42),
+        ZIndex = 2
     })
 
     local Tabs = {}
     local CurrentTab = nil
-
     local Window = {}
 
     -- ==================== CREATE TAB ====================
@@ -250,11 +319,12 @@ function Library:CreateWindow(config)
             BackgroundColor3 = Theme.Card,
             BorderSizePixel = 0,
             Size = UDim2.new(1, 0, 0, 36),
-            Font = Enum.Font.GothamMedium,
+            Font = MediumFont,
             Text = (icon and (icon .. "  ") or "") .. name,
             TextColor3 = Theme.TextDark,
             TextSize = 13,
-            AutoButtonColor = false
+            AutoButtonColor = false,
+            ZIndex = 3
         })
         Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = TabBtn})
         AddStroke(TabBtn, Theme.Stroke, 1)
@@ -265,7 +335,8 @@ function Library:CreateWindow(config)
             BorderSizePixel = 0,
             Position = UDim2.new(0, 0, 0.2, 0),
             Size = UDim2.new(0, 3, 0.6, 0),
-            Visible = false
+            Visible = false,
+            ZIndex = 4
         })
         Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Indicator})
 
@@ -273,10 +344,11 @@ function Library:CreateWindow(config)
             Parent = Content,
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 1, 0),
-            Visible = false
+            Visible = false,
+            ZIndex = 2
         })
 
-        -- Co1 (Left)
+        -- Co1
         local Co1 = Create("ScrollingFrame", {
             Parent = TabPage,
             BackgroundTransparency = 1,
@@ -285,7 +357,8 @@ function Library:CreateWindow(config)
             CanvasSize = UDim2.new(0, 0, 0, 0),
             ScrollBarThickness = 3,
             ScrollBarImageColor3 = Theme.Accent,
-            BorderSizePixel = 0
+            BorderSizePixel = 0,
+            ZIndex = 2
         })
         local Co1Layout = Create("UIListLayout", {
             Parent = Co1,
@@ -300,7 +373,7 @@ function Library:CreateWindow(config)
             PaddingBottom = UDim.new(0, 12)
         })
 
-        -- Co2 (Right)
+        -- Co2
         local Co2 = Create("ScrollingFrame", {
             Parent = TabPage,
             BackgroundTransparency = 1,
@@ -309,7 +382,8 @@ function Library:CreateWindow(config)
             CanvasSize = UDim2.new(0, 0, 0, 0),
             ScrollBarThickness = 3,
             ScrollBarImageColor3 = Theme.Accent,
-            BorderSizePixel = 0
+            BorderSizePixel = 0,
+            ZIndex = 2
         })
         local Co2Layout = Create("UIListLayout", {
             Parent = Co2,
@@ -363,11 +437,7 @@ function Library:CreateWindow(config)
         end)
 
         table.insert(Tabs, {Button = TabBtn, Indicator = Indicator, Page = TabPage})
-
-        if #Tabs == 1 then
-            SelectTab()
-        end
-
+        if #Tabs == 1 then SelectTab() end
         TabList.CanvasSize = UDim2.new(0, 0, 0, TabList:FindFirstChildOfClass("UIListLayout").AbsoluteContentSize.Y + 24)
 
         -- ==================== CREATE SECTION ====================
@@ -378,8 +448,10 @@ function Library:CreateWindow(config)
             local Section = Create("Frame", {
                 Parent = parent,
                 BackgroundColor3 = Theme.Card,
+                BackgroundTransparency = 0.1,
                 BorderSizePixel = 0,
-                Size = UDim2.new(1, 0, 0, 50)
+                Size = UDim2.new(1, 0, 0, 50),
+                ZIndex = 3
             })
             Create("UICorner", {CornerRadius = UDim.new(0, 10), Parent = Section})
             AddStroke(Section, Theme.Stroke, 1)
@@ -389,26 +461,28 @@ function Library:CreateWindow(config)
                 BackgroundTransparency = 1,
                 Position = UDim2.new(0, 12, 0, 8),
                 Size = UDim2.new(1, -24, 0, 18),
-                Font = Enum.Font.GothamBold,
+                Font = BoldFont,
                 Text = name,
                 TextColor3 = Theme.Accent,
                 TextSize = 13,
-                TextXAlignment = Enum.TextXAlignment.Left
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 4
             })
 
             local descHeight = 0
             if description and description ~= "" then
-                local DescLabel = Create("TextLabel", {
+                Create("TextLabel", {
                     Parent = Section,
                     BackgroundTransparency = 1,
                     Position = UDim2.new(0, 12, 0, 26),
                     Size = UDim2.new(1, -24, 0, 16),
-                    Font = Enum.Font.Gotham,
+                    Font = MainFont,
                     Text = description,
                     TextColor3 = Theme.TextMuted,
                     TextSize = 11,
                     TextXAlignment = Enum.TextXAlignment.Left,
-                    TextWrapped = true
+                    TextWrapped = true,
+                    ZIndex = 4
                 })
                 descHeight = 18
             end
@@ -417,7 +491,8 @@ function Library:CreateWindow(config)
                 Parent = Section,
                 BackgroundTransparency = 1,
                 Position = UDim2.new(0, 0, 0, 30 + descHeight),
-                Size = UDim2.new(1, 0, 0, 0)
+                Size = UDim2.new(1, 0, 0, 0),
+                ZIndex = 3
             })
             local ContentLayout = Create("UIListLayout", {
                 Parent = SectionContent,
@@ -440,16 +515,14 @@ function Library:CreateWindow(config)
 
             local Sec = {}
 
-            -- ========== HELPER: สร้าง Locked Overlay ==========
-            local function MakeLocked(parentFrame, elementType)
+            local function MakeLocked(parentFrame)
                 local LockOverlay = Create("Frame", {
                     Parent = parentFrame,
-                    BackgroundColor3 = Color3.fromRGB(15, 15, 20),
-                    BackgroundTransparency = 0.35,
+                    BackgroundColor3 = Color3.fromRGB(10, 10, 15),
+                    BackgroundTransparency = 0.3,
                     BorderSizePixel = 0,
                     Size = UDim2.new(1, 0, 1, 0),
-                    ZIndex = 5,
-                    Visible = true
+                    ZIndex = 10
                 })
                 Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = LockOverlay})
 
@@ -457,37 +530,36 @@ function Library:CreateWindow(config)
                     Parent = LockOverlay,
                     BackgroundTransparency = 1,
                     Size = UDim2.new(1, 0, 1, 0),
-                    Font = Enum.Font.GothamBold,
+                    Font = BoldFont,
                     Text = "🔒 LOCKED  |  Enter Key",
                     TextColor3 = Theme.Locked,
                     TextSize = 12,
-                    ZIndex = 6
+                    ZIndex = 11
                 })
-
                 return LockOverlay, LockText
             end
 
             -- ========== BUTTON ==========
             function Sec:CreateButton(text, callback, locked)
                 locked = locked or false
-
                 local Btn = Create("TextButton", {
                     Parent = SectionContent,
                     BackgroundColor3 = Theme.Button,
                     BorderSizePixel = 0,
                     Size = UDim2.new(1, 0, 0, 32),
-                    Font = Enum.Font.GothamMedium,
+                    Font = MediumFont,
                     Text = text,
                     TextColor3 = Theme.Text,
                     TextSize = 13,
-                    AutoButtonColor = false
+                    AutoButtonColor = false,
+                    ZIndex = 4
                 })
                 Create("UICorner", {CornerRadius = UDim.new(0, 7), Parent = Btn})
                 AddStroke(Btn, Theme.Stroke, 1)
 
                 local LockOverlay, LockText
                 if locked then
-                    LockOverlay, LockText = MakeLocked(Btn, "Button")
+                    LockOverlay, LockText = MakeLocked(Btn)
                 end
 
                 Btn.MouseEnter:Connect(function()
@@ -514,20 +586,18 @@ function Library:CreateWindow(config)
                     if callback then callback() end
                 end)
 
-                -- อัปเดตเมื่อ Unlock
                 if locked then
                     task.spawn(function()
-                        while locked and LockOverlay do
+                        while locked and LockOverlay and LockOverlay.Parent do
                             if IsUnlocked then
                                 LockOverlay:Destroy()
                                 locked = false
                                 break
                             end
-                            task.wait(0.5)
+                            task.wait(0.4)
                         end
                     end)
                 end
-
                 return Btn
             end
 
@@ -540,26 +610,29 @@ function Library:CreateWindow(config)
                 local ToggleFrame = Create("Frame", {
                     Parent = SectionContent,
                     BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 30)
+                    Size = UDim2.new(1, 0, 0, 30),
+                    ZIndex = 4
                 })
 
-                local Label = Create("TextLabel", {
+                Create("TextLabel", {
                     Parent = ToggleFrame,
                     BackgroundTransparency = 1,
                     Position = UDim2.new(0, 0, 0, 0),
                     Size = UDim2.new(1, -55, 1, 0),
-                    Font = Enum.Font.Gotham,
+                    Font = MainFont,
                     Text = text,
                     TextColor3 = Theme.Text,
                     TextSize = 13,
-                    TextXAlignment = Enum.TextXAlignment.Left
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    ZIndex = 5
                 })
 
                 local ToggleBg = Create("Frame", {
                     Parent = ToggleFrame,
                     BackgroundColor3 = state and Theme.ToggleOn or Theme.ToggleOff,
                     Position = UDim2.new(1, -46, 0.5, -11),
-                    Size = UDim2.new(0, 42, 0, 22)
+                    Size = UDim2.new(0, 42, 0, 22),
+                    ZIndex = 5
                 })
                 Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = ToggleBg})
 
@@ -567,7 +640,8 @@ function Library:CreateWindow(config)
                     Parent = ToggleBg,
                     BackgroundColor3 = Color3.fromRGB(255, 255, 255),
                     Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9),
-                    Size = UDim2.new(0, 18, 0, 18)
+                    Size = UDim2.new(0, 18, 0, 18),
+                    ZIndex = 6
                 })
                 Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = Circle})
 
@@ -575,12 +649,13 @@ function Library:CreateWindow(config)
                     Parent = ToggleFrame,
                     BackgroundTransparency = 1,
                     Size = UDim2.new(1, 0, 1, 0),
-                    Text = ""
+                    Text = "",
+                    ZIndex = 7
                 })
 
                 local LockOverlay, LockText
                 if locked then
-                    LockOverlay, LockText = MakeLocked(ToggleFrame, "Toggle")
+                    LockOverlay, LockText = MakeLocked(ToggleFrame)
                 end
 
                 Click.MouseButton1Click:Connect(function()
@@ -605,13 +680,13 @@ function Library:CreateWindow(config)
 
                 if locked then
                     task.spawn(function()
-                        while locked and LockOverlay do
+                        while locked and LockOverlay and LockOverlay.Parent do
                             if IsUnlocked then
                                 LockOverlay:Destroy()
                                 locked = false
                                 break
                             end
-                            task.wait(0.5)
+                            task.wait(0.4)
                         end
                     end)
                 end
@@ -637,7 +712,8 @@ function Library:CreateWindow(config)
                     Parent = SectionContent,
                     BackgroundTransparency = 1,
                     Size = UDim2.new(1, 0, 0, 32),
-                    ClipsDescendants = false
+                    ClipsDescendants = false,
+                    ZIndex = 4
                 })
 
                 local DropBtn = Create("TextButton", {
@@ -645,12 +721,13 @@ function Library:CreateWindow(config)
                     BackgroundColor3 = Theme.Button,
                     BorderSizePixel = 0,
                     Size = UDim2.new(1, 0, 0, 32),
-                    Font = Enum.Font.Gotham,
+                    Font = MainFont,
                     Text = "  " .. text .. ": " .. selected,
                     TextColor3 = Theme.Text,
                     TextSize = 13,
                     TextXAlignment = Enum.TextXAlignment.Left,
-                    AutoButtonColor = false
+                    AutoButtonColor = false,
+                    ZIndex = 5
                 })
                 Create("UICorner", {CornerRadius = UDim.new(0, 7), Parent = DropBtn})
                 AddStroke(DropBtn, Theme.Stroke, 1)
@@ -660,10 +737,11 @@ function Library:CreateWindow(config)
                     BackgroundTransparency = 1,
                     Position = UDim2.new(1, -28, 0, 0),
                     Size = UDim2.new(0, 24, 1, 0),
-                    Font = Enum.Font.GothamBold,
+                    Font = BoldFont,
                     Text = "▾",
                     TextColor3 = Theme.TextDark,
-                    TextSize = 14
+                    TextSize = 14,
+                    ZIndex = 6
                 })
 
                 local DropList = Create("Frame", {
@@ -673,7 +751,7 @@ function Library:CreateWindow(config)
                     Position = UDim2.new(0, 0, 0, 36),
                     Size = UDim2.new(1, 0, 0, 0),
                     Visible = false,
-                    ZIndex = 20,
+                    ZIndex = 30,
                     ClipsDescendants = true
                 })
                 Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = DropList})
@@ -697,13 +775,13 @@ function Library:CreateWindow(config)
                         BackgroundColor3 = Theme.Button,
                         BorderSizePixel = 0,
                         Size = UDim2.new(1, 0, 0, 28),
-                        Font = Enum.Font.Gotham,
+                        Font = MainFont,
                         Text = "  " .. opt,
                         TextColor3 = Theme.Text,
                         TextSize = 12,
                         TextXAlignment = Enum.TextXAlignment.Left,
                         AutoButtonColor = false,
-                        ZIndex = 21
+                        ZIndex = 31
                     })
                     Create("UICorner", {CornerRadius = UDim.new(0, 5), Parent = OptBtn})
 
@@ -727,7 +805,7 @@ function Library:CreateWindow(config)
 
                 local LockOverlay, LockText
                 if locked then
-                    LockOverlay, LockText = MakeLocked(DropFrame, "Dropdown")
+                    LockOverlay, LockText = MakeLocked(DropFrame)
                 end
 
                 DropBtn.MouseButton1Click:Connect(function()
@@ -759,13 +837,13 @@ function Library:CreateWindow(config)
 
                 if locked then
                     task.spawn(function()
-                        while locked and LockOverlay do
+                        while locked and LockOverlay and LockOverlay.Parent do
                             if IsUnlocked then
                                 LockOverlay:Destroy()
                                 locked = false
                                 break
                             end
-                            task.wait(0.5)
+                            task.wait(0.4)
                         end
                     end)
                 end
@@ -785,15 +863,16 @@ function Library:CreateWindow(config)
         return Tab
     end
 
-    -- ===== Key Input Section (สำหรับ Tester) =====
+    -- ===== Key Box =====
     function Window:CreateKeyBox()
         local KeyFrame = Create("Frame", {
             Parent = Main,
             BackgroundColor3 = Theme.Secondary,
+            BackgroundTransparency = 0.15,
             BorderSizePixel = 0,
             Position = UDim2.new(0, 150, 1, -50),
             Size = UDim2.new(1, -160, 0, 38),
-            Visible = true
+            ZIndex = 5
         })
         Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = KeyFrame})
         AddStroke(KeyFrame, Theme.Stroke, 1)
@@ -803,14 +882,15 @@ function Library:CreateWindow(config)
             BackgroundTransparency = 1,
             Position = UDim2.new(0, 12, 0, 0),
             Size = UDim2.new(0.7, 0, 1, 0),
-            Font = Enum.Font.Gotham,
+            Font = MainFont,
             PlaceholderText = "Enter Key here...",
             PlaceholderColor3 = Theme.TextMuted,
             Text = "",
             TextColor3 = Theme.Text,
             TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
-            ClearTextOnFocus = false
+            ClearTextOnFocus = false,
+            ZIndex = 6
         })
 
         local UnlockBtn = Create("TextButton", {
@@ -819,17 +899,17 @@ function Library:CreateWindow(config)
             BorderSizePixel = 0,
             Position = UDim2.new(0.72, 0, 0.15, 0),
             Size = UDim2.new(0.26, 0, 0.7, 0),
-            Font = Enum.Font.GothamBold,
+            Font = BoldFont,
             Text = "Unlock",
             TextColor3 = Theme.Text,
             TextSize = 12,
-            AutoButtonColor = false
+            AutoButtonColor = false,
+            ZIndex = 6
         })
         Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = UnlockBtn})
 
         UnlockBtn.MouseButton1Click:Connect(function()
-            local key = KeyBox.Text
-            if Library:Unlock(key) then
+            if Library:Unlock(KeyBox.Text) then
                 UnlockBtn.Text = "✓ Unlocked"
                 Tween(UnlockBtn, {BackgroundColor3 = Theme.Success})
                 KeyBox.Text = ""
@@ -843,6 +923,38 @@ function Library:CreateWindow(config)
                 end)
             end
         end)
+    end
+
+    -- ===== ฟังก์ชันเปลี่ยนพื้นหลังแบบ Runtime =====
+    function Window:SetBackground(bgConfig)
+        bgConfig = bgConfig or {}
+        local newType = bgConfig.Type or "Color"
+        local newColor = bgConfig.Color or Theme.Background
+        local newImage = bgConfig.Image or ""
+        local newTrans = bgConfig.Transparency or 0
+
+        if BgImageLabel then
+            BgImageLabel:Destroy()
+            BgImageLabel = nil
+        end
+
+        if newType == "Color" then
+            Main.BackgroundColor3 = newColor
+            Main.BackgroundTransparency = 0
+        elseif newType == "Image" or newType == "Gif" then
+            Main.BackgroundTransparency = 1
+            BgImageLabel = Create("ImageLabel", {
+                Name = "CustomBackground",
+                Parent = Main,
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 1, 0),
+                Image = newImage,
+                ImageTransparency = newTrans,
+                ScaleType = Enum.ScaleType.Crop,
+                ZIndex = 0
+            })
+            Create("UICorner", {CornerRadius = UDim.new(0, 12), Parent = BgImageLabel})
+        end
     end
 
     return Window
